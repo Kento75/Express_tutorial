@@ -1,5 +1,6 @@
 var mongoose = require('mongoose');
 
+// Messageスキーマ設定
 var Message = mongoose.Schema({
   username: String,
   message: String,
