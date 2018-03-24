@@ -2,14 +2,12 @@
 
 var http = require('http');
 var express = require('express');
-<<<<<<< HEAD
+
 var path = require('path');
 var bodyparser = require('body-parser');
 var mongoose = require('mongoose');
 
 var Message = require('./schema/Message');
-=======
->>>>>>> 9905927ba8ffd783ce16c21abf2fbeb4fdc68516
 
 var app = express();
 
