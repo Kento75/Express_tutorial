@@ -77,6 +77,9 @@ app.post("/signin", fileUpload(), function(req, res, next) {
       password: req.body.password,
       avatar_path: '/avatar/' + avatar.name
     });
+    console.log('username:' + req.body.username);
+    console.log('username:' + req.body.password);
+    console.log('username:' + avatar.name);
     newUser.save((err) => {
       if(err) throw err;
       return res.redirect("/");
@@ -94,34 +97,41 @@ app.post("/login", passport.authenticate('local'),
 function(req, res, next) {
   User.findOne({_id: req.session.passport.user},
   function(err, user) {
-    if(err || !req.session) return res.redirect('/login');
+    if(err || !req.session) { return res.redirect("/login"); }
     req.session.user = {
       username: user.username,
       avatar_path: user.avatar_path
     }
-    return res.redirect('/');
+    return res.redirect("/");
   });
 });
 
 passport.use(new LocalStrategy(function(username, password, done) {
   User.findOne({ username: username }, function(err, user) {
     if(err) { return done(err); }
-    if(!user) {
+    if(!username) {
+          console.log("username:" + username);
       return done(null, false, { message: 'Incorrect username.' });
     }
-    if(user.password !== password) {
+    if(user.password != password) {
+          console.log("password:" + password);
+          console.log("user.password:" + user.password);
       return done(null, false, { message: 'Incorrect password.' });
     }
+        console.log("end_username:" + username);
+        console.log("end_password:" + password);
     return done(null, user);
   });
 }));
 
 passport.serializeUser(function(user, done) {
-  done(null, user._id);
+  console.log("user_id:" + user.id +" user:" + user);
+  done(null, user.id);
 });
 
 passport.deserializeUser(function(id, done) {
   User.findOne({ _id: id }, function(err, user) {
+    console.log("id:" + id);
     done(err, user);
   });
 });
