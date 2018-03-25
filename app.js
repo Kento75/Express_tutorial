@@ -10,7 +10,7 @@ var bodyparser = require('body-parser');
 
 // 認証モジュールの設定
 var passport = require('passport');
-var LocalStrategy = require('passport-local').Strategy;
+var TwitterStrategy = require('passport-twitter').Strategy;
 var session = require('express-session');
 
 // ファイルアップロード設定
@@ -62,73 +62,6 @@ app.get("/", function(req, res, next) {
   });
 });
 
-// 会員登録画面遷移
-app.get("/signin", function(req, res, next) {
-  return res.render('signin');
-});
-
-// 会員登録処理
-app.post("/signin", fileUpload(), function(req, res, next) {
-  var avatar = req.files.avatar;
-  avatar.mv("./avatar/" + avatar.name, function(err) {
-    if(err) throw err;
-    var newUser = new User({
-      username: req.body.username,
-      password: req.body.password,
-      avatar_path: '/avatar/' + avatar.name
-    });
-    console.log('username:' + req.body.username);
-    console.log('username:' + req.body.password);
-    console.log('username:' + avatar.name);
-    newUser.save((err) => {
-      if(err) throw err;
-      return res.redirect("/");
-    });
-  });
-});
-
-// ログイン画面遷移
-app.get("/login", function(req, res, next) {
-  return res.render('login');
-});
-
-// ログイン処理
-app.post("/login", passport.authenticate('local'),
-function(req, res, next) {
-  User.findOne({_id: req.session.passport.user},
-  function(err, user) {
-    if(err || !req.session) { return res.redirect("/login"); }
-    req.session.user = {
-      username: user.username,
-      avatar_path: user.avatar_path
-    }
-    return res.redirect("/");
-  });
-});
-
-passport.use(new LocalStrategy(function(username, password, done) {
-  User.findOne({ username: username }, function(err, user) {
-    if(err) { return done(err); }
-    if(!username) {
-          console.log("username:" + username);
-      return done(null, false, { message: 'Incorrect username.' });
-    }
-    if(user.password != password) {
-          console.log("password:" + password);
-          console.log("user.password:" + user.password);
-      return done(null, false, { message: 'Incorrect password.' });
-    }
-        console.log("end_username:" + username);
-        console.log("end_password:" + password);
-    return done(null, user);
-  });
-}));
-
-passport.serializeUser(function(user, done) {
-  console.log("user_id:" + user.id +" user:" + user);
-  done(null, user.id);
-});
-
 passport.deserializeUser(function(id, done) {
   User.findOne({ _id: id }, function(err, user) {
     console.log("id:" + id);
@@ -141,17 +74,28 @@ app.get("/update", function(req, res, next) {
   return res.render('update');
 });
 
+app.get("/oauth/twitter", passport.authenicate('twitter'));
+app.get("/oauth/twitter/callback", passport.authenicate('twitter'),
+  function(req, res, next) {
+    User.findOne({
+      _id: req.session.passport.user
+    }, function(err, user) {
+      if(err || !req.session) return res.redirect('/oauth/twitter')
+    })
+  })
 
 // 登録処理・一覧画面遷移
 app.post("/update", fileUpload(), function(req, res, next) {
   if(req.files && req.files.image) {
-    req.files.image.mv('./image/' + req.files.image.name, function(err) {
+    var img = req.files.imege
+    img.mv('./image/' + img.name, function(err) {
       if(err) throw err;
 
       var newMessage = new Message({
-        username: req.body.username,
+        username: req.session.username,
+        avatar_path: req.session.user.avatar_path,
         message: req.body.message,
-        image_path: '/image/' + req.files.image.name
+        image_path: '/image/' + img.name
       });
       newMessage.save((err) => {
         if(err) throw err;
@@ -160,7 +104,8 @@ app.post("/update", fileUpload(), function(req, res, next) {
     });
   } else {
     var newMessage = new Message({
-      username: req.body.username,
+      username: req.session.user.username,
+      avatar_path: req.session.user.avatar_path,
       message: req.body.message
     });
     newMessage.save((err) => {
