@@ -2,71 +2,65 @@
 
 var http = require('http');
 var express = require('express');
-
-var path = require('path');
-
-// パーサーの設定
-var bodyparser = require('body-parser');
-
-// 認証モジュールの設定
+var path = require('path')
 var passport = require('passport');
 var TwitterStrategy = require('passport-twitter').Strategy;
 var session = require('express-session');
-
-// ファイルアップロード設定
-var fileUpload = require('express-fileupload');
+var MongoStore = require('connect-mongo')(session);
+var bodyparser = require('body-parser');
 var mongoose = require('mongoose');
+var fileUpload = require('express-fileupload');
 
-// Messageスキーマの取得
-var Message = require('./schema/Message');
+var Message = require('./schema/Message')
+var User = require('./schema/User')
 
-// Userスキーマの取得
-var User = require('./schema/User');
+var app = express()
 
-var app = express();
-
-// twitter設定
-var twitterConfig = {
+//var twitterConfig = {
 //  consumerKey: process.env.TWITTER_CONSUMER_KEY,
 //  consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
 //  callbackURL: process.env.TWITTER_CALLBACK_URL,
-};
+//};
 
-// MongoDB接続
-mongoose.connect('mongodb://localhost:27017/chatapp', function(err) {
-  if(err) {
-    console.error(err);
-  } else {
-    console.log("successfully connected to MongoDB.");
+
+mongoose.connect('mongodb://localhost:27017/chatapp',function(err){
+  if(err){
+     console.error(err);
+  }else{
+     console.log("successfully connected to MongoDB.")
   }
-});
+})
 
-// パーサーミドルウェアをExpressに追加
-app.use(bodyparser());
 
-// 認証用ミドルウェアをExpressに追加
-app.use(session({secret: 'HogeFuga'}));
+app.use(bodyparser())
+app.use(session({
+  secret: 'b87ef9fb4a152dbfe4cf4ea630444474',
+  resave : false,
+  saveUninitialized : false,
+  store: new MongoStore({
+    mongooseConnection: mongoose.connection,
+    db: 'session',
+    ttl: 14 * 24 * 60 * 60,
+  }),
+
+}));
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use("/image", express.static(path.join(__dirname, 'image')))
+app.use("/avatar", express.static(path.join(__dirname, 'avatar')))
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-// 画像格納パスの設定
-app.use("/image", express.static(path.join(__dirname, 'image')));
-
-// ユーザーアバター用画像格納パスの設定
-app.use("/avatar", express.static(path.join(__dirname, 'avatar')));
-
-// 一覧画面遷移
-app.get("/", function(req, res, next) {
+app.get("/",function(req, res, next) {
   Message.find({}, function(err, msgs){
     if(err) throw err;
     return res.render('index', {
       messages: msgs,
       user: req.session && req.session.user ? req.session.user : null
     });
-  });
+  })
 });
 
 passport.use(new TwitterStrategy(twitterConfig,
@@ -91,63 +85,66 @@ passport.use(new TwitterStrategy(twitterConfig,
     });
   }
 ));
-
 app.get('/oauth/twitter', passport.authenticate('twitter'));
+
 app.get('/oauth/twitter/callback', passport.authenticate('twitter'),
   function(req, res, next) {
-    User.findOne({
-      _id: req.session.passport.user
-    }, function(err, user) {
-      if(err || !req.session) return res.redirect('/oauth/twitter')
+
+    User.findOne({_id: req.session.passport.user}, function(err, user){
+      if(err||!req.session) return res.redirect('/oauth/twitter')
+      req.session.user = {
+        username: user.username,
+        avatar_path: user.avatar_path
+      };
+      return res.redirect("/")
     })
-  })
+  }
+);
+passport.serializeUser(function(user, done) {
+  done(null, user._id);
+});
 
-  passport.serializeUser(function(user, done) {
-    done(null, user._id);
+passport.deserializeUser(function(id, done) {
+  User.findOne({_id: id}, function(err, user) {
+    done(err, user);
   });
+});
 
-  passport.deserializeUser(function(id, done) {
-    User.findOne({_id: id}, function(err, user) {
-      done(err, user);
-    });
-  });
-
-// 登録画面遷移
 app.get("/update", function(req, res, next) {
   return res.render('update');
 });
 
-// 登録処理・一覧画面遷移
 app.post("/update", fileUpload(), function(req, res, next) {
-  if(req.files && req.files.image) {
-    var img = req.files.imege
-    img.mv('./image/' + img.name, function(err) {
-      if(err) throw err;
+  if(req.files && req.files.image){
+    var img = req.files.image
+
+    img.mv('./image/' + img.name, function(err){
+      if(err) throw err
 
       var newMessage = new Message({
-        username: req.session.username,
+        username: req.body.username,
         avatar_path: req.session.user.avatar_path,
         message: req.body.message,
         image_path: '/image/' + img.name
-      });
-      newMessage.save((err) => {
-        if(err) throw err;
+      })
+      newMessage.save((err)=>{
+        if(err) throw err
         return res.redirect("/");
-      });
-    });
-  } else {
-    var newMessage = new Message({
-      username: req.session.user.username,
-      avatar_path: req.session.user.avatar_path,
-      message: req.body.message
-    });
-    newMessage.save((err) => {
-      if(err) throw err;
-      return res.redirect("/");
-    });
+      })
+    })
+  }else{
+      var newMessage = new Message({
+        username: req.body.username,
+        avatar_path: req.session.user.avatar_path,
+        message: req.body.message,
+      })
+      newMessage.save((err)=>{
+        if(err) throw err
+        return res.redirect("/")
+      })
   }
-});
+})
 
-// サーバー起動
-var server = http.createServer(app);
+
+const server = http.createServer(app);
 server.listen('3000');
