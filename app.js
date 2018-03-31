@@ -24,11 +24,6 @@ var app = express();
 //  callbackURL: process.env.TWITTER_CALLBACK_URL,
 //};
 
-var twitterConfig = {
-  consumerKey: 'y9pKbk3QFah9RVUABdGH9Knq9',
-  consumerSecret: 'cxt2RtgRadH8Pphc0RLHToX8HVgFFCHa3KquOYlb78saCJnH8j',
-  callbackURL: 'http://localhost:3000/oauth/twitter/callback',
-};
 
 mongoose.connect('mongodb://localhost:27017/chatapp',function(err){
   if(err){
