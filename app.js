@@ -11,10 +11,12 @@ var bodyparser = require('body-parser');
 var mongoose = require('mongoose');
 var fileUpload = require('express-fileupload');
 
-var Message = require('./schema/Message')
-var User = require('./schema/User')
+var Message = require('./schema/Message');
+var User = require('./schema/User');
 
-var app = express()
+var app = express();
+
+//var log = require('./lib/error_logger');
 
 //var twitterConfig = {
 //  consumerKey: process.env.TWITTER_CONSUMER_KEY,
@@ -22,6 +24,11 @@ var app = express()
 //  callbackURL: process.env.TWITTER_CALLBACK_URL,
 //};
 
+var twitterConfig = {
+  consumerKey: 'y9pKbk3QFah9RVUABdGH9Knq9',
+  consumerSecret: 'cxt2RtgRadH8Pphc0RLHToX8HVgFFCHa3KquOYlb78saCJnH8j',
+  callbackURL: 'http://localhost:3000/oauth/twitter/callback',
+};
 
 mongoose.connect('mongodb://localhost:27017/chatapp',function(err){
   if(err){
@@ -34,7 +41,7 @@ mongoose.connect('mongodb://localhost:27017/chatapp',function(err){
 
 app.use(bodyparser())
 app.use(session({
-  secret: 'b87ef9fb4a152dbfe4cf4ea630444474',
+  secret: 'cf4eaewq32aqs3u43eokkr5697',
   resave : false,
   saveUninitialized : false,
   store: new MongoStore({
@@ -42,7 +49,10 @@ app.use(session({
     db: 'session',
     ttl: 14 * 24 * 60 * 60,
   }),
-
+  // https通信の場合はコメントを外す
+  //cookie: {
+  //  secure: true,
+  //},
 }));
 app.use(passport.initialize());
 app.use(passport.session());
@@ -145,6 +155,14 @@ app.post("/update", fileUpload(), function(req, res, next) {
   }
 })
 
+// 404エラーハンドリング
+app.use(function(req, res, next) {
+  var err = new Error('Not Found');
+  err.status = 404;
+  return res.render('error', {
+    status: err.status,
+  });
+});
 
 const server = http.createServer(app);
 server.listen('3000');
