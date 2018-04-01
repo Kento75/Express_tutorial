@@ -16,14 +16,13 @@ var User = require('./schema/User');
 
 var app = express();
 
-//var log = require('./lib/error_logger');
+var log = require('./lib/error_logger');
 
 //var twitterConfig = {
 //  consumerKey: process.env.TWITTER_CONSUMER_KEY,
 //  consumerSecret: process.env.TWITTER_CONSUMER_SECRET,
 //  callbackURL: process.env.TWITTER_CALLBACK_URL,
 //};
-
 
 mongoose.connect('mongodb://localhost:27017/chatapp',function(err){
   if(err){
@@ -150,12 +149,34 @@ app.post("/update", fileUpload(), function(req, res, next) {
   }
 })
 
+// エラーハンドリング確認
+// throwでエラーインスタンスを生成するパターン
+//app.get("/test", function(req, res, next) {
+//  throw new Error("error");
+//});
+
+// エラーハンドリング確認2
+// next内にエラーインスタンスを生成するパターン
+//app.get("/test2", function(req, res, next) {
+//  return next(new Error("error"));
+//});
+
 // 404エラーハンドリング
 app.use(function(req, res, next) {
   var err = new Error('Not Found');
   err.status = 404;
   return res.render('error', {
     status: err.status,
+  });
+});
+
+// 500エラーハンドリング
+app.use(function(err, req, res, next) {
+  log.error(err);
+  res.status(err.status || 500);
+  return res.render('error', {
+    message: err.message,
+    status: err.status || 500,
   });
 });
 
